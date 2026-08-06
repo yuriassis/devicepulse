@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevicePulse.Api", "DevicePulse.Api\DevicePulse.Api.csproj", "{06AA1724-068E-4940-94C1-1A88CA810FA1}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DevicePulse.Tests", "DevicePulse.Tests\DevicePulse.Tests.csproj", "{3C68293C-A0AF-4381-B924-1D1555E39B8A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{06AA1724-068E-4940-94C1-1A88CA810FA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{06AA1724-068E-4940-94C1-1A88CA810FA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{06AA1724-068E-4940-94C1-1A88CA810FA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{06AA1724-068E-4940-94C1-1A88CA810FA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3C68293C-A0AF-4381-B924-1D1555E39B8A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3C68293C-A0AF-4381-B924-1D1555E39B8A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3C68293C-A0AF-4381-B924-1D1555E39B8A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3C68293C-A0AF-4381-B924-1D1555E39B8A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
