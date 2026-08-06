@@ -1,32 +1,13 @@
 using DevicePulse.Api.Data;
-using DevicePulse.Api.Middleware;
-using DevicePulse.Api.Services;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<DevicePulseDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DevicePulse")));
-builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 
 var app = builder.Build();
-
-app.UseMiddleware<ExceptionHandlingMiddleware>();
-
-await using (var scope = app.Services.CreateAsyncScope())
-{
-    var dbContext = scope.ServiceProvider.GetRequiredService<DevicePulseDbContext>();
-    await dbContext.Database.MigrateAsync();
-}
-
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
 
 app.MapControllers();
 
