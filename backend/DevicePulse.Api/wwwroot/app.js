@@ -55,16 +55,36 @@ async function loadDashboard() {
   $('#equipment-loading').hidden = false;
   $('#equipment-empty').hidden = true;
   try {
-    const [summary, equipments] = await Promise.all([request('/dashboard/summary'), request('/equipments')]);
+    const [summary, equipments, autopilot] = await Promise.all([request('/dashboard/summary'), request('/equipments'), request('/autopilot')]);
     state.equipments = equipments;
     $('#equipment-count').textContent = summary.equipmentCount;
     $('#reading-count').textContent = summary.readingCount;
     $('#manual-count').textContent = summary.manualReadingCount;
     $('#autopilot-count').textContent = summary.autopilotReadingCount;
+    renderAutopilot(autopilot);
     renderEquipments();
   } catch (error) {
     showMessage(`Falha ao carregar o painel: ${error.message}`);
   } finally { $('#equipment-loading').hidden = true; }
+}
+
+function renderAutopilot(autopilot) {
+  const stateBadge = $('#autopilot-state');
+  state.autopilotRunning = autopilot.isRunning;
+  stateBadge.textContent = autopilot.isRunning ? `Piloto ativo · ${autopilot.intervalSeconds}s` : 'Piloto parado';
+  stateBadge.className = `status-badge ${autopilot.isRunning ? 'normal' : ''}`;
+  $('#autopilot-toggle').textContent = autopilot.isRunning ? 'Parar piloto' : 'Iniciar piloto';
+}
+
+async function toggleAutopilot() {
+  const button = $('#autopilot-toggle');
+  button.disabled = true;
+  try {
+    const autopilot = await request(`/autopilot/${state.autopilotRunning ? 'stop' : 'start'}`, { method: 'POST' });
+    renderAutopilot(autopilot);
+    showMessage(autopilot.isRunning ? 'Piloto automático iniciado.' : 'Piloto automático interrompido.', true);
+  } catch (error) { showMessage(error.message); }
+  finally { button.disabled = false; }
 }
 
 function openEquipmentDialog(equipment = null) {
@@ -136,6 +156,7 @@ async function openHistory(equipment) {
 
 $('#new-equipment').addEventListener('click', () => openEquipmentDialog());
 $('#refresh').addEventListener('click', loadDashboard);
+$('#autopilot-toggle').addEventListener('click', toggleAutopilot);
 $('#equipment-form').addEventListener('submit', submitEquipment);
 $('#reading-form').addEventListener('submit', submitReading);
 document.querySelectorAll('.close-dialog').forEach(button => button.addEventListener('click', () => $('#equipment-dialog').close()));

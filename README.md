@@ -7,9 +7,9 @@ um resumo operacional para dashboards.
 
 > **Última atualização do planejamento:** 7 de agosto de 2026
 >
-> **Etapa atual:** 5 — Piloto automático
+> **Etapa atual:** 6 — Qualidade e entrega
 >
-> **Próxima entrega:** geração periódica e controles do piloto automático
+> **Próxima entrega:** testes de integração, CI e documentação de implantação
 
 O MVP possui uma API funcional em .NET 8, com persistência em SQLite, e uma
 interface web responsiva servida pela própria aplicação. Pelo painel já é
@@ -28,7 +28,7 @@ atendidos e as verificações relacionadas tiverem sido executadas.
 | 2. Gestão de equipamentos | ✅ Concluída | Cadastro, listagem, consulta, edição e exclusão de equipamentos, com validações de domínio | Operações CRUD cobertas por testes automatizados e nomes duplicados rejeitados |
 | 3. Leituras e resumo operacional | ✅ Concluída | Registro e histórico de leituras, identificação da origem e resumo agregado para o dashboard | Serviços de leituras e resumo cobertos por testes automatizados |
 | 4. Interface web | ✅ Concluída | Dashboard responsivo, listagem e formulários de equipamentos e visualização do histórico | Fluxos principais podem ser executados pela interface e possuem estados de carregamento, vazio e erro |
-| 5. Piloto automático | 🚧 Em andamento | Geração periódica de leituras automáticas e controles para ativar ou interromper a simulação | Leituras são geradas sem intervenção manual, persistidas com a origem correta e refletidas no dashboard |
+| 5. Piloto automático | ✅ Concluída | Geração periódica de leituras automáticas e controles para ativar ou interromper a simulação | Leituras são geradas sem intervenção manual, persistidas com a origem correta e refletidas no dashboard |
 | 6. Qualidade e entrega | ⏳ Planejada | Testes de integração, automação de CI, documentação de implantação e empacotamento da aplicação | Pipeline reproduzível executa build e testes, e o sistema pode ser implantado seguindo a documentação |
 
 ### Registro de conclusão das etapas
@@ -39,6 +39,7 @@ atendidos e as verificações relacionadas tiverem sido executadas.
 | 6 de agosto de 2026 | 2. Gestão de equipamentos | CRUD e validações de equipamentos concluídos |
 | 7 de agosto de 2026 | 3. Leituras e resumo operacional | Histórico de leituras e endpoint de resumo concluídos |
 | 7 de agosto de 2026 | 4. Interface web | Painel responsivo, gestão de equipamentos, registro manual e histórico de leituras concluídos |
+| 7 de agosto de 2026 | 5. Piloto automático | Geração periódica, persistência de leituras e controles de início e parada concluídos |
 
 ### Como manter este planejamento atualizado
 
@@ -69,6 +70,8 @@ devem ser atualizados na tabela, sem marcá-la como concluída antecipadamente.
 - painel web responsivo com indicadores e estado operacional dos equipamentos;
 - cadastro, edição e exclusão de equipamentos diretamente pela interface;
 - registro manual e consulta das 100 leituras mais recentes pela interface;
+- piloto automático configurável, com geração periódica dentro dos limites de cada equipamento;
+- controles de início e parada do piloto automático no painel;
 - estados visuais de carregamento, conteúdo vazio, sucesso e erro;
 - respostas de erro padronizadas para validações e conflitos;
 - Swagger UI no ambiente de desenvolvimento.
@@ -85,6 +88,9 @@ devem ser atualizados na tabela, sem marcá-la como concluída antecipadamente.
 | `POST` | `/api/equipments/{id}/readings` | Registra uma leitura |
 | `GET` | `/api/equipments/{id}/readings?limit=50` | Consulta as leituras mais recentes |
 | `GET` | `/api/dashboard/summary` | Obtém os totais do dashboard |
+| `GET` | `/api/autopilot` | Consulta o estado e o intervalo do piloto automático |
+| `POST` | `/api/autopilot/start` | Inicia a geração periódica de leituras |
+| `POST` | `/api/autopilot/stop` | Interrompe a geração periódica de leituras |
 
 ## Tecnologias
 
@@ -113,6 +119,10 @@ e o ambiente podem ser ajustados em
 `backend/DevicePulse.Api/Properties/launchSettings.json`. Em desenvolvimento, a
 interface web fica disponível na raiz (`/`) e a documentação interativa fica
 disponível em `/swagger`.
+
+O intervalo do piloto automático é definido, em segundos, pela configuração
+`Autopilot:IntervalSeconds` (10 segundos por padrão). O piloto inicia parado e
+pode ser controlado pelo painel ou pelos endpoints da API.
 
 ### Testes
 
