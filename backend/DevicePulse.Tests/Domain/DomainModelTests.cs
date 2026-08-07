@@ -7,13 +7,13 @@ namespace DevicePulse.Tests.Domain;
 public sealed class DomainModelTests
 {
     [Theory]
-    [InlineData(AlertOperator.GreaterThan, 10, null, 11, true)]
-    [InlineData(AlertOperator.GreaterThanOrEqual, 10, null, 10, true)]
-    [InlineData(AlertOperator.LessThan, 10, null, 9, true)]
-    [InlineData(AlertOperator.LessThanOrEqual, 10, null, 10, true)]
-    [InlineData(AlertOperator.Equal, 10, null, 10, true)]
-    [InlineData(AlertOperator.OutsideRange, 10, 20, 21, true)]
-    [InlineData(AlertOperator.InsideRange, 10, 20, 15, true)]
+    [InlineData(AlertOperator.GreaterThan, 10d, null, 11d, true)]
+    [InlineData(AlertOperator.GreaterThanOrEqual, 10d, null, 10d, true)]
+    [InlineData(AlertOperator.LessThan, 10d, null, 9d, true)]
+    [InlineData(AlertOperator.LessThanOrEqual, 10d, null, 10d, true)]
+    [InlineData(AlertOperator.Equal, 10d, null, 10d, true)]
+    [InlineData(AlertOperator.OutsideRange, 10d, 20d, 21d, true)]
+    [InlineData(AlertOperator.InsideRange, 10d, 20d, 15d, true)]
     public void Alert_rule_evaluates_every_operator(AlertOperator op, double threshold, double? secondary, double value, bool expected)
     {
         var rule = new AlertRule { OrganizationId = Guid.NewGuid(), DeviceId = Guid.NewGuid(), Name = "rule", Operator = op, Threshold = threshold, SecondaryThreshold = secondary };
