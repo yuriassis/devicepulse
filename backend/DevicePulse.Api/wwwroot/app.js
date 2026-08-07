@@ -1,5 +1,5 @@
 const api = '/api';
-const state = { equipments: [] };
+const state = { equipments: [], refreshTimer: null, dashboardRequest: null };
 const $ = (selector, root = document) => root.querySelector(selector);
 const formatNumber = value => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
 const formatDate = value => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
@@ -51,21 +51,30 @@ function renderEquipments() {
   });
 }
 
-async function loadDashboard() {
-  $('#equipment-loading').hidden = false;
-  $('#equipment-empty').hidden = true;
-  try {
-    const [summary, equipments, autopilot] = await Promise.all([request('/dashboard/summary'), request('/equipments'), request('/autopilot')]);
-    state.equipments = equipments;
-    $('#equipment-count').textContent = summary.equipmentCount;
-    $('#reading-count').textContent = summary.readingCount;
-    $('#manual-count').textContent = summary.manualReadingCount;
-    $('#autopilot-count').textContent = summary.autopilotReadingCount;
-    renderAutopilot(autopilot);
-    renderEquipments();
-  } catch (error) {
-    showMessage(`Falha ao carregar o painel: ${error.message}`);
-  } finally { $('#equipment-loading').hidden = true; }
+async function loadDashboard({ silent = false } = {}) {
+  if (state.dashboardRequest) return state.dashboardRequest;
+  if (!silent) {
+    $('#equipment-loading').hidden = false;
+    $('#equipment-empty').hidden = true;
+  }
+  state.dashboardRequest = (async () => {
+    try {
+      const [summary, equipments, autopilot] = await Promise.all([request('/dashboard/summary'), request('/equipments'), request('/autopilot')]);
+      state.equipments = equipments;
+      $('#equipment-count').textContent = summary.equipmentCount;
+      $('#reading-count').textContent = summary.readingCount;
+      $('#manual-count').textContent = summary.manualReadingCount;
+      $('#autopilot-count').textContent = summary.autopilotReadingCount;
+      renderAutopilot(autopilot);
+      renderEquipments();
+    } catch (error) {
+      if (!silent) showMessage(`Falha ao carregar o painel: ${error.message}`);
+    } finally {
+      if (!silent) $('#equipment-loading').hidden = true;
+    }
+  })();
+  try { await state.dashboardRequest; }
+  finally { state.dashboardRequest = null; }
 }
 
 function renderAutopilot(autopilot) {
@@ -74,6 +83,21 @@ function renderAutopilot(autopilot) {
   stateBadge.textContent = autopilot.isRunning ? `Piloto ativo · ${autopilot.intervalSeconds}s` : 'Piloto parado';
   stateBadge.className = `status-badge ${autopilot.isRunning ? 'normal' : ''}`;
   $('#autopilot-toggle').textContent = autopilot.isRunning ? 'Parar piloto' : 'Iniciar piloto';
+  if (autopilot.isRunning && !state.refreshTimer) {
+    state.refreshTimer = setInterval(() => loadDashboard({ silent: true }), 1000);
+  } else if (!autopilot.isRunning && state.refreshTimer) {
+    clearInterval(state.refreshTimer);
+    state.refreshTimer = null;
+  }
+}
+
+function applyReading(reading) {
+  const equipment = state.equipments.find(item => item.id === reading.equipmentId);
+  if (!equipment) return;
+  equipment.currentValue = reading.value;
+  equipment.lastReadingSource = reading.source;
+  equipment.updatedAt = reading.recordedAt;
+  renderEquipments();
 }
 
 async function toggleAutopilot() {
@@ -132,7 +156,8 @@ async function submitReading(event) {
   const form = event.currentTarget, button = $('.submit-button', form), error = $('.form-error', form);
   button.disabled = true; error.hidden = true;
   try {
-    await request(`/equipments/${$('#reading-equipment-id').value}/readings`, { method: 'POST', body: JSON.stringify({ value: Number($('#reading-value').value), source: 'Manual' }) });
+    const reading = await request(`/equipments/${$('#reading-equipment-id').value}/readings`, { method: 'POST', body: JSON.stringify({ value: Number($('#reading-value').value), source: 'Manual' }) });
+    applyReading(reading);
     $('#reading-dialog').close(); showMessage('Leitura registrada.', true); await loadDashboard();
   } catch (err) { error.textContent = err.message; error.hidden = false; }
   finally { button.disabled = false; }
