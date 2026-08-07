@@ -140,6 +140,10 @@ endpoints HTTP. A automação em `.github/workflows/ci.yml` executa restore, bui
 testes com coleta de cobertura e também valida a construção da imagem Docker em
 pushes e pull requests.
 
+O projeto de testes centraliza a importação do xUnit em `GlobalUsings.cs`. Os
+testes HTTP também compartilham as mesmas regras de serialização de enums usadas
+pela API, evitando diferenças entre o cliente de teste e o contrato publicado.
+
 ## Implantação com Docker
 
 Com Docker Engine e Docker Compose instalados, construa e inicie a aplicação:
