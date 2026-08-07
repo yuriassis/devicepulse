@@ -21,8 +21,9 @@ um resumo operacional para dashboards.
 - respostas de erro padronizadas para validações e conflitos;
 - Swagger UI no ambiente de desenvolvimento;
 - testes de integração dos fluxos HTTP com banco isolado;
-- pipeline de CI para restore, build, testes, cobertura e construção da imagem;
-- empacotamento em contêiner com persistência do banco SQLite.
+- pipeline de CI para restore, build, testes e coleta de cobertura;
+- execução local e publicação usando apenas o SDK do .NET, sem Docker;
+- persistência local em um banco SQLite criado automaticamente.
 
 ## Endpoints da API
 
@@ -62,8 +63,12 @@ dotnet restore backend/DevicePulse.sln
 dotnet run --project backend/DevicePulse.Api
 ```
 
-A aplicação aplica automaticamente as migrações ao iniciar. Os endereços locais
-e o ambiente podem ser ajustados em
+A aplicação estará disponível em `http://localhost:5000`. Não é necessário
+instalar ou iniciar um servidor de banco de dados: o SQLite cria o arquivo
+`devicepulse.db` automaticamente no diretório a partir do qual o comando é
+executado. As migrações também são aplicadas automaticamente ao iniciar.
+
+Os endereços locais e o ambiente podem ser ajustados em
 `backend/DevicePulse.Api/Properties/launchSettings.json`. Em desenvolvimento, a
 interface web fica disponível na raiz (`/`) e a documentação interativa fica
 disponível em `/swagger`.
@@ -81,49 +86,63 @@ dotnet test backend/DevicePulse.sln
 Os testes incluem unidades dos serviços e cenários de integração que inicializam
 a aplicação completa, aplicam as migrações em um banco temporário e exercitam os
 endpoints HTTP. A automação em `.github/workflows/ci.yml` executa restore, build,
-testes com coleta de cobertura e também valida a construção da imagem Docker em
-pushes e pull requests.
+testes e coleta de cobertura em pushes e pull requests.
 
 O projeto de testes centraliza a importação do xUnit em `GlobalUsings.cs`. Os
 testes HTTP também compartilham as mesmas regras de serialização de enums usadas
 pela API, evitando diferenças entre o cliente de teste e o contrato publicado.
 
-## Implantação com Docker
+## Publicação sem Docker
 
-Com Docker Engine e Docker Compose instalados, construa e inicie a aplicação:
-
-```bash
-docker compose up --build -d
-```
-
-O painel estará disponível em `http://localhost:8080`. O volume nomeado
-`devicepulse-data` mantém o arquivo SQLite entre recriações do contêiner. Para
-acompanhar a inicialização e interromper o serviço:
+Para gerar os artefatos otimizados que podem ser executados sem o código-fonte,
+use:
 
 ```bash
-docker compose logs -f devicepulse
-docker compose down
+dotnet publish backend/DevicePulse.Api/DevicePulse.Api.csproj \
+  --configuration Release \
+  --output ./publish
 ```
 
-Para remover também os dados persistidos, use `docker compose down --volumes`.
-Em uma plataforma de contêineres, publique a imagem criada pelo `Dockerfile`,
-exponha a porta `8080` e monte armazenamento gravável em `/data`.
+Execute a aplicação publicada diretamente com o runtime do .NET 8:
+
+```bash
+cd publish
+dotnet DevicePulse.Api.dll
+```
+
+Por padrão, o painel publicado escuta em `http://localhost:5000` e o banco fica
+em `publish/devicepulse.db`. Mantenha esse arquivo em um diretório persistente e
+inclua-o na rotina de backups. Para escolher outro endereço, porta ou local para
+o banco, defina as variáveis de ambiente descritas abaixo antes de executar a
+DLL.
 
 ### Configuração de produção
 
 As opções do ASP.NET Core podem ser sobrescritas por variáveis de ambiente com
 dois sublinhados como separador. As principais opções são:
 
-| Variável | Padrão da imagem | Finalidade |
+| Variável | Padrão | Finalidade |
 | --- | --- | --- |
-| `ConnectionStrings__DevicePulse` | `Data Source=/data/devicepulse.db;Default Timeout=30` | Caminho e opções do banco SQLite |
+| `ConnectionStrings__DevicePulse` | `Data Source=devicepulse.db;Default Timeout=30` | Caminho e opções do banco SQLite |
 | `Autopilot__IntervalSeconds` | `10` | Intervalo, em segundos, entre ciclos automáticos |
-| `ASPNETCORE_HTTP_PORTS` | `8080` | Porta HTTP interna do contêiner |
+| `ASPNETCORE_URLS` | `http://localhost:5000` | Endereço e porta HTTP da aplicação publicada |
+
+Exemplo para disponibilizar a aplicação na porta `8080` e salvar os dados em
+`/var/lib/devicepulse` no Linux:
+
+```bash
+mkdir -p /var/lib/devicepulse
+ASPNETCORE_URLS=http://0.0.0.0:8080 \
+ConnectionStrings__DevicePulse='Data Source=/var/lib/devicepulse/devicepulse.db;Default Timeout=30' \
+dotnet ./publish/DevicePulse.Api.dll
+```
 
 As migrações são aplicadas automaticamente na inicialização. Em produção,
-proteja o diretório persistente com backups e não execute mais de uma réplica
+proteja o arquivo persistente com backups e não execute mais de uma instância
 contra o mesmo arquivo SQLite. Para escalar horizontalmente, a persistência deve
-ser migrada para um banco de dados compartilhado.
+ser migrada para um banco de dados compartilhado. Um gerenciador de serviços do
+sistema operacional, como o `systemd` no Linux, pode manter o processo ativo e
+reiniciá-lo quando necessário.
 
 ## Estrutura do repositório
 
@@ -134,8 +153,8 @@ backend/
 └── DevicePulse.sln       # solução .NET
 ```
 
-Na raiz, `Dockerfile` e `compose.yaml` definem o empacotamento e a execução local,
-enquanto `.github/workflows/ci.yml` mantém as verificações automatizadas.
+Na raiz, `.github/workflows/ci.yml` mantém as verificações automatizadas. O
+arquivo SQLite gerado localmente é ignorado pelo Git.
 
 ## Licença
 
