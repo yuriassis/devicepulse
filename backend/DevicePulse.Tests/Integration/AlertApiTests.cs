@@ -13,7 +13,7 @@ public sealed class AlertApiTests(DevicePulseApiFactory factory) : IClassFixture
     private readonly HttpClient client = factory.CreateClient();
 
     [Fact]
-    public async Task AlertStatusUsesItsOwnRangeInsteadOfEquipmentAutopilotLimits()
+    public async Task AlertIsTriggeredWhenCurrentValueIsInsideItsOwnRange()
     {
         var equipmentResponse = await client.PostAsJsonAsync(
             "/api/equipments", new CreateEquipmentRequest("Sensor de teste", 0, 100, 50), JsonOptions);
@@ -26,17 +26,36 @@ public sealed class AlertApiTests(DevicePulseApiFactory factory) : IClassFixture
         Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         var created = await createResponse.Content.ReadFromJsonAsync<AlertResponse>(JsonOptions);
         Assert.NotNull(created);
-        Assert.True(created.IsTriggered);
+        Assert.False(created.IsTriggered);
 
         await client.PostAsJsonAsync(
             $"/api/equipments/{equipment.Id}/readings",
             new CreateReadingRequest(15, ReadingSource.Manual), JsonOptions);
         var alerts = await client.GetFromJsonAsync<List<AlertResponse>>("/api/alerts", JsonOptions);
 
-        var alert = Assert.Single(alerts!);
-        Assert.False(alert.IsTriggered);
+        var alert = Assert.Single(alerts!, item => item.Id == created.Id);
+        Assert.True(alert.IsTriggered);
         Assert.Equal(15, alert.CurrentValue);
         Assert.Equal("Sensor de teste", alert.EquipmentName);
+    }
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(20)]
+    public async Task AlertRangeIncludesMinimumAndMaximumValues(double currentValue)
+    {
+        var equipmentResponse = await client.PostAsJsonAsync(
+            "/api/equipments", new CreateEquipmentRequest($"Sensor {currentValue}", 0, 100, currentValue), JsonOptions);
+        var equipment = await equipmentResponse.Content.ReadFromJsonAsync<EquipmentResponse>(JsonOptions);
+        Assert.NotNull(equipment);
+
+        var createResponse = await client.PostAsJsonAsync(
+            "/api/alerts", new CreateAlertRequest($"Limite {currentValue}", equipment.Id, 10, 20), JsonOptions);
+
+        Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
+        var alert = await createResponse.Content.ReadFromJsonAsync<AlertResponse>(JsonOptions);
+        Assert.NotNull(alert);
+        Assert.True(alert.IsTriggered);
     }
 
     [Fact]

@@ -43,7 +43,7 @@ public sealed class AlertService(DevicePulseDbContext dbContext) : IAlertService
             .Select(alert => new AlertResponse(
                 alert.Id, alert.Name, alert.EquipmentId, alert.Equipment.Name,
                 alert.MinimumValue, alert.MaximumValue, alert.Equipment.CurrentValue,
-                alert.Equipment.CurrentValue < alert.MinimumValue || alert.Equipment.CurrentValue > alert.MaximumValue,
+                alert.Equipment.CurrentValue >= alert.MinimumValue && alert.Equipment.CurrentValue <= alert.MaximumValue,
                 alert.CreatedAt))
             .ToListAsync(cancellationToken);
 
@@ -59,6 +59,6 @@ public sealed class AlertService(DevicePulseDbContext dbContext) : IAlertService
     private static AlertResponse Map(Alert alert, Equipment equipment) => new(
         alert.Id, alert.Name, equipment.Id, equipment.Name, alert.MinimumValue,
         alert.MaximumValue, equipment.CurrentValue,
-        equipment.CurrentValue < alert.MinimumValue || equipment.CurrentValue > alert.MaximumValue,
+        equipment.CurrentValue >= alert.MinimumValue && equipment.CurrentValue <= alert.MaximumValue,
         alert.CreatedAt);
 }
