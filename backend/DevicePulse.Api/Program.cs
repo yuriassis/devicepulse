@@ -13,6 +13,7 @@ builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<DevicePulseDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DevicePulse")));
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
+builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IAutopilotReadingGenerator, AutopilotReadingGenerator>();
 builder.Services.AddSingleton<AutopilotService>();

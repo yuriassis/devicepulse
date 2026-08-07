@@ -6,6 +6,8 @@ um resumo operacional para dashboards.
 ## Funcionalidades disponíveis
 
 - criação, consulta, atualização e exclusão de equipamentos;
+- cadastro, listagem e exclusão de alertas vinculados a equipamentos;
+- acionamento de alertas pela comparação da leitura atual com o intervalo próprio do alerta;
 - validação de nome, limites e valores numéricos;
 - proteção contra nomes de equipamentos duplicados;
 - registro do valor inicial de cada equipamento no histórico;
@@ -36,6 +38,9 @@ um resumo operacional para dashboards.
 | `DELETE` | `/api/equipments/{id}` | Exclui o equipamento e suas leituras |
 | `POST` | `/api/equipments/{id}/readings` | Registra uma leitura |
 | `GET` | `/api/equipments/{id}/readings?limit=50` | Consulta as leituras mais recentes |
+| `POST` | `/api/alerts` | Cadastra um alerta com nome, equipamento e intervalo |
+| `GET` | `/api/alerts` | Lista alertas e informa se cada um está acionado |
+| `DELETE` | `/api/alerts/{id}` | Exclui um alerta |
 | `GET` | `/api/dashboard/summary` | Obtém os totais do dashboard |
 | `GET` | `/api/autopilot` | Consulta o estado e o intervalo do piloto automático |
 | `POST` | `/api/autopilot/start` | Inicia a geração periódica de leituras |
