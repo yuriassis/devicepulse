@@ -33,7 +33,9 @@ docs/                         decisões e operação
 
 ## Execução local
 
-Pré-requisitos: .NET SDK 8, Node.js 20 e PostgreSQL 16.
+O guia [Recursos e execução local](docs/local-development.md) detalha os requisitos de hardware e software, portas, variáveis, duas formas de subir o ambiente completo e como preparar e operar o simulador automático. O caminho mais simples para executar frontend, API, banco e observabilidade é o Docker Compose.
+
+Para desenvolvimento sem colocar frontend e API em containers, os pré-requisitos principais são .NET SDK 8, Node.js 20, npm e PostgreSQL 16:
 
 ```bash
 export ConnectionStrings__DevicePulse='Host=localhost;Database=devicepulse;Username=devicepulse;Password=<senha>'
@@ -42,7 +44,7 @@ dotnet run --project backend/DevicePulse.Api
 cd frontend && npm install && npm run dev
 ```
 
-As datas persistidas e os contratos usam UTC. Swagger fica em `http://localhost:5000/swagger`, o frontend Vite em `http://localhost:5173`, readiness em `/health/ready`, liveness em `/health/live` e SignalR em `/hubs/device-updates`.
+As datas persistidas e os contratos usam UTC. No perfil `Development`, Swagger fica em `http://localhost:5000/swagger`; o frontend Vite fica em `http://localhost:5173`, readiness em `/health/ready`, liveness em `/health/live` e SignalR em `/hubs/device-updates`.
 
 ## Docker Compose
 
@@ -57,13 +59,15 @@ docker compose ps
 | Serviço | Endereço |
 |---|---|
 | Aplicação | http://localhost:3000 |
-| API / Swagger | http://localhost:5000 / http://localhost:5000/swagger |
+| API | http://localhost:5000 |
 | RabbitMQ Management | http://localhost:15672 |
 | Prometheus | http://localhost:9090 |
 | Grafana | http://localhost:3001 |
 | Jaeger | http://localhost:16686 |
 
 O volume `devicepulse-postgres` preserva dados entre reinícios. Migrações devem ser aplicadas por um job único antes de aumentar réplicas; não habilite migração automática concorrente em produção.
+
+Depois de iniciar o ambiente, consulte o [passo a passo do simulador](docs/local-development.md#5-preparar-e-rodar-o-simulador-autopilot) para cadastrar um equipamento, iniciar a geração de leituras e validar o resultado. O Swagger não é exposto pelo Compose, pois a API usa o ambiente `Production`; use os comandos HTTP documentados ou execute a API localmente com o perfil `Development`.
 
 ## Testes e validações
 
