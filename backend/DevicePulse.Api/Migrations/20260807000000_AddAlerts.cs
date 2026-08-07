@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -8,17 +9,22 @@ public partial class AddAlerts : Migration
 {
     protected override void Up(MigrationBuilder migrationBuilder)
     {
+        var postgres = migrationBuilder.ActiveProvider.Contains("Npgsql", StringComparison.Ordinal);
+        var integer = postgres ? "bigint" : "INTEGER";
+        var number = postgres ? "double precision" : "REAL";
+        var timestamp = postgres ? "timestamp with time zone" : "TEXT";
         migrationBuilder.CreateTable(
             name: "Alerts",
             columns: table => new
             {
-                Id = table.Column<long>(type: "INTEGER", nullable: false)
-                    .Annotation("Sqlite:Autoincrement", true),
+                Id = table.Column<long>(type: integer, nullable: false)
+                    .Annotation("Sqlite:Autoincrement", true)
+                    .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                 Name = table.Column<string>(type: "TEXT", maxLength: 100, nullable: false),
-                EquipmentId = table.Column<long>(type: "INTEGER", nullable: false),
-                MinimumValue = table.Column<double>(type: "REAL", nullable: false),
-                MaximumValue = table.Column<double>(type: "REAL", nullable: false),
-                CreatedAt = table.Column<DateTime>(type: "TEXT", nullable: false)
+                EquipmentId = table.Column<long>(type: integer, nullable: false),
+                MinimumValue = table.Column<double>(type: number, nullable: false),
+                MaximumValue = table.Column<double>(type: number, nullable: false),
+                CreatedAt = table.Column<DateTime>(type: timestamp, nullable: false)
             },
             constraints: table =>
             {

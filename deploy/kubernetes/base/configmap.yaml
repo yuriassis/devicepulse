@@ -1,0 +1,4 @@
+apiVersion: v1
+kind: ConfigMap
+metadata: { name: devicepulse, namespace: devicepulse }
+data: { ASPNETCORE_ENVIRONMENT: Production, ASPNETCORE_URLS: 'http://+:8080' }

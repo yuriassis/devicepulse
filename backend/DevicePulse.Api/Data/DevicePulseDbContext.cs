@@ -17,7 +17,8 @@ public sealed class DevicePulseDbContext(DbContextOptions<DevicePulseDbContext> 
         var equipment = modelBuilder.Entity<Equipment>();
         equipment.ToTable("Equipments");
         equipment.HasKey(item => item.Id);
-        equipment.Property(item => item.Name).IsRequired().HasMaxLength(100).UseCollation("NOCASE");
+        var name = equipment.Property(item => item.Name).IsRequired().HasMaxLength(100);
+        if (Database.IsSqlite()) name.UseCollation("NOCASE");
         equipment.HasIndex(item => item.Name).IsUnique();
         equipment.HasMany(item => item.Readings)
             .WithOne(item => item.Equipment)

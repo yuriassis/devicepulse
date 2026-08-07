@@ -1,0 +1,1 @@
+resources: [namespace.yaml, configmap.yaml, api.yaml, frontend.yaml, infrastructure-demo.yaml, ingress.yaml]

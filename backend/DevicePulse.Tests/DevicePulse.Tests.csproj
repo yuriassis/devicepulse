@@ -22,5 +22,6 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\DevicePulse.Api\DevicePulse.Api.csproj" />
+    <ProjectReference Include="..\DevicePulse.Domain\DevicePulse.Domain.csproj" />
   </ItemGroup>
 </Project>
