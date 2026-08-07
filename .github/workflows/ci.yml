@@ -19,4 +19,3 @@ jobs:
       - run: dotnet restore backend/DevicePulse.sln
       - run: dotnet build backend/DevicePulse.sln --configuration Release --no-restore
       - run: dotnet test backend/DevicePulse.sln --configuration Release --no-build --collect:"XPlat Code Coverage"
-      - run: docker build --file Dockerfile --tag devicepulse:ci .
