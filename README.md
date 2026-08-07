@@ -1,166 +1,105 @@
 # DevicePulse
 
-API para cadastro e observabilidade de equipamentos, com histórico de leituras e
-um resumo operacional para dashboards.
+DevicePulse é uma plataforma genérica de telemetria para cadastro e acompanhamento de equipamentos. Esta evolução preserva a API do MVP, separa o núcleo de domínio de infraestrutura, introduz PostgreSQL como persistência principal, contratos de eventos, SignalR e uma interface React responsiva.
 
-## Funcionalidades disponíveis
+## Arquitetura
 
-- criação, consulta, atualização e exclusão de equipamentos;
-- cadastro, listagem e exclusão de alertas vinculados a equipamentos;
-- acionamento de alertas pela comparação da leitura atual com o intervalo próprio do alerta;
-- validação de nome, limites e valores numéricos;
-- proteção contra nomes de equipamentos duplicados;
-- registro do valor inicial de cada equipamento no histórico;
-- registro de leituras com origem `Manual` ou `Autopilot`;
-- consulta das 1 a 100 leituras mais recentes de um equipamento;
-- resumo com quantidades de equipamentos e leituras por origem;
-- painel web responsivo com indicadores e estado operacional dos equipamentos;
-- cadastro, edição e exclusão de equipamentos diretamente pela interface;
-- registro manual e consulta das 100 leituras mais recentes pela interface;
-- piloto automático configurável, com geração periódica dentro dos limites de cada equipamento;
-- controles de início e parada do piloto automático no painel;
-- estados visuais de carregamento, conteúdo vazio, sucesso e erro;
-- respostas de erro padronizadas para validações e conflitos;
-- Swagger UI no ambiente de desenvolvimento;
-- testes de integração dos fluxos HTTP com banco isolado;
-- pipeline de CI para restore, build, testes e coleta de cobertura;
-- execução local e publicação usando apenas o SDK do .NET, sem Docker;
-- persistência local em um banco SQLite criado automaticamente.
+```mermaid
+flowchart LR
+  Web[React + TanStack Query] -->|HTTP| API[ASP.NET Core API]
+  Web <-->|SignalR| API
+  API --> PG[(PostgreSQL)]
+  API -. eventos .-> RMQ[RabbitMQ]
+  API --> OTEL[OpenTelemetry Collector]
+  OTEL --> Prom[Prometheus]
+  OTEL --> Jaeger[Jaeger]
+  Grafana --> Prom
+```
 
-## Endpoints da API
+O domínio (`DevicePulse.Domain`) não referencia ASP.NET, EF Core ou RabbitMQ. `DevicePulse.Contracts` contém contratos de integração versionados. A API continua oferecendo as rotas do MVP e usa PostgreSQL fora do ambiente isolado de testes. Consulte [a arquitetura detalhada](docs/architecture.md) e [o modelo de domínio](docs/domain-model.md).
 
-| Método | Rota | Descrição |
-| --- | --- | --- |
-| `POST` | `/api/equipments` | Cadastra um equipamento |
-| `GET` | `/api/equipments` | Lista os equipamentos por nome |
-| `GET` | `/api/equipments/{id}` | Consulta um equipamento |
-| `PUT` | `/api/equipments/{id}` | Atualiza nome e limites |
-| `DELETE` | `/api/equipments/{id}` | Exclui o equipamento e suas leituras |
-| `POST` | `/api/equipments/{id}/readings` | Registra uma leitura |
-| `GET` | `/api/equipments/{id}/readings?limit=50` | Consulta as leituras mais recentes |
-| `POST` | `/api/alerts` | Cadastra um alerta com nome, equipamento e intervalo |
-| `GET` | `/api/alerts` | Lista alertas e informa se cada um está acionado |
-| `DELETE` | `/api/alerts/{id}` | Exclui um alerta |
-| `GET` | `/api/dashboard/summary` | Obtém os totais do dashboard |
-| `GET` | `/api/autopilot` | Consulta o estado e o intervalo do piloto automático |
-| `POST` | `/api/autopilot/start` | Inicia a geração periódica de leituras |
-| `POST` | `/api/autopilot/stop` | Interrompe a geração periódica de leituras |
+## Estrutura
 
-## Tecnologias
+```text
+backend/DevicePulse.Api       API, EF Core, SignalR e health checks
+backend/DevicePulse.Domain    entidades, invariantes e simulação puras
+backend/DevicePulse.Contracts eventos de integração
+backend/DevicePulse.Tests     testes unitários e de integração existentes
+frontend/                     React, TypeScript, Vite e TanStack Query
+deploy/docker/                telemetria, métricas e dashboards
+deploy/kubernetes/base/       Kustomize, Kubernetes e Route OpenShift
+docs/                         decisões e operação
+```
 
-- .NET 8 e ASP.NET Core Web API;
-- Entity Framework Core 8;
-- SQLite;
-- Swagger/OpenAPI;
-- HTML, CSS e JavaScript sem dependências externas;
-- xUnit e SQLite em memória nos testes.
+## Execução local
 
-## Como executar
+Pré-requisitos: .NET SDK 8, Node.js 20 e PostgreSQL 16.
 
-### Pré-requisitos
+```bash
+export ConnectionStrings__DevicePulse='Host=localhost;Database=devicepulse;Username=devicepulse;Password=<senha>'
+dotnet restore backend/DevicePulse.sln
+dotnet run --project backend/DevicePulse.Api
+cd frontend && npm install && npm run dev
+```
 
-- [.NET SDK 8](https://dotnet.microsoft.com/download/dotnet/8.0)
+As datas persistidas e os contratos usam UTC. Swagger fica em `http://localhost:5000/swagger`, o frontend Vite em `http://localhost:5173`, readiness em `/health/ready`, liveness em `/health/live` e SignalR em `/hubs/device-updates`.
 
-### API
+## Docker Compose
+
+Nenhuma senha real é versionada. Copie o modelo e altere todos os valores antes de iniciar:
+
+```bash
+cp .env.example .env
+docker compose up --build
+docker compose ps
+```
+
+| Serviço | Endereço |
+|---|---|
+| Aplicação | http://localhost:3000 |
+| API / Swagger | http://localhost:5000 / http://localhost:5000/swagger |
+| RabbitMQ Management | http://localhost:15672 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3001 |
+| Jaeger | http://localhost:16686 |
+
+O volume `devicepulse-postgres` preserva dados entre reinícios. Migrações devem ser aplicadas por um job único antes de aumentar réplicas; não habilite migração automática concorrente em produção.
+
+## Testes e validações
 
 ```bash
 dotnet restore backend/DevicePulse.sln
-dotnet run --project backend/DevicePulse.Api
+dotnet build backend/DevicePulse.sln --configuration Release --no-restore
+dotnet test backend/DevicePulse.sln --configuration Release --no-build --collect:'XPlat Code Coverage'
+cd frontend
+npm install
+npm run lint
+npm test
+npm run build
+docker compose config
+kubectl kustomize deploy/kubernetes/base
 ```
 
-A aplicação estará disponível em `http://localhost:5000`. Não é necessário
-instalar ou iniciar um servidor de banco de dados: o SQLite cria o arquivo
-`devicepulse.db` automaticamente no diretório a partir do qual o comando é
-executado. As migrações também são aplicadas automaticamente ao iniciar.
+## Configuração
 
-Os endereços locais e o ambiente podem ser ajustados em
-`backend/DevicePulse.Api/Properties/launchSettings.json`. Em desenvolvimento, a
-interface web fica disponível na raiz (`/`) e a documentação interativa fica
-disponível em `/swagger`.
+| Variável | Obrigatória | Finalidade |
+|---|---:|---|
+| `ConnectionStrings__DevicePulse` | sim | conexão PostgreSQL |
+| `POSTGRES_PASSWORD` | Compose | senha local do PostgreSQL |
+| `RABBITMQ_PASSWORD` | Compose | senha local do RabbitMQ |
+| `GRAFANA_PASSWORD` | Compose | administrador local do Grafana |
+| `JWT_SIGNING_KEY` | autenticação | chave externa, com no mínimo 32 caracteres |
+| `DEVICEPULSE_SEED_ADMIN_PASSWORD` | seed opcional | senha do administrador de demonstração |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | observabilidade | endpoint OTLP |
 
-O intervalo do piloto automático é definido, em segundos, pela configuração
-`Autopilot:IntervalSeconds` (10 segundos por padrão). O piloto inicia parado e
-pode ser controlado pelo painel ou pelos endpoints da API.
+## Implantação
 
-### Testes
+`kubectl apply -k deploy/kubernetes/base` instala a base demonstrativa. Crie previamente o Secret `devicepulse-secrets`; nenhum Secret é fornecido no Git. Os containers declaram execução sem privilégios, limites e probes. PostgreSQL e RabbitMQ incluídos nos manifests são apenas demonstrativos: produção deve usar serviço gerenciado ou operador. Consulte [deployment.md](docs/deployment.md).
 
-```bash
-dotnet test backend/DevicePulse.sln
-```
+## Trade-offs e limitações conhecidas
 
-Os testes incluem unidades dos serviços e cenários de integração que inicializam
-a aplicação completa, aplicam as migrações em um banco temporário e exercitam os
-endpoints HTTP. A automação em `.github/workflows/ci.yml` executa restore, build,
-testes e coleta de cobertura em pushes e pull requests.
-
-O projeto de testes centraliza a importação do xUnit em `GlobalUsings.cs`. Os
-testes HTTP também compartilham as mesmas regras de serialização de enums usadas
-pela API, evitando diferenças entre o cliente de teste e o contrato publicado.
-
-## Publicação sem Docker
-
-Para gerar os artefatos otimizados que podem ser executados sem o código-fonte,
-use:
-
-```bash
-dotnet publish backend/DevicePulse.Api/DevicePulse.Api.csproj \
-  --configuration Release \
-  --output ./publish
-```
-
-Execute a aplicação publicada diretamente com o runtime do .NET 8:
-
-```bash
-cd publish
-dotnet DevicePulse.Api.dll
-```
-
-Por padrão, o painel publicado escuta em `http://localhost:5000` e o banco fica
-em `publish/devicepulse.db`. Mantenha esse arquivo em um diretório persistente e
-inclua-o na rotina de backups. Para escolher outro endereço, porta ou local para
-o banco, defina as variáveis de ambiente descritas abaixo antes de executar a
-DLL.
-
-### Configuração de produção
-
-As opções do ASP.NET Core podem ser sobrescritas por variáveis de ambiente com
-dois sublinhados como separador. As principais opções são:
-
-| Variável | Padrão | Finalidade |
-| --- | --- | --- |
-| `ConnectionStrings__DevicePulse` | `Data Source=devicepulse.db;Default Timeout=30` | Caminho e opções do banco SQLite |
-| `Autopilot__IntervalSeconds` | `10` | Intervalo, em segundos, entre ciclos automáticos |
-| `ASPNETCORE_URLS` | `http://localhost:5000` | Endereço e porta HTTP da aplicação publicada |
-
-Exemplo para disponibilizar a aplicação na porta `8080` e salvar os dados em
-`/var/lib/devicepulse` no Linux:
-
-```bash
-mkdir -p /var/lib/devicepulse
-ASPNETCORE_URLS=http://0.0.0.0:8080 \
-ConnectionStrings__DevicePulse='Data Source=/var/lib/devicepulse/devicepulse.db;Default Timeout=30' \
-dotnet ./publish/DevicePulse.Api.dll
-```
-
-As migrações são aplicadas automaticamente na inicialização. Em produção,
-proteja o arquivo persistente com backups e não execute mais de uma instância
-contra o mesmo arquivo SQLite. Para escalar horizontalmente, a persistência deve
-ser migrada para um banco de dados compartilhado. Um gerenciador de serviços do
-sistema operacional, como o `systemd` no Linux, pode manter o processo ativo e
-reiniciá-lo quando necessário.
-
-## Estrutura do repositório
-
-```text
-backend/
-├── DevicePulse.Api/      # API, domínio, persistência e interface web em wwwroot
-├── DevicePulse.Tests/    # testes unitários dos serviços e de integração HTTP
-└── DevicePulse.sln       # solução .NET
-```
-
-Na raiz, `.github/workflows/ci.yml` mantém as verificações automatizadas. O
-arquivo SQLite gerado localmente é ignorado pelo Git.
+O repositório mantém os endpoints legados `/api/*` para compatibilidade; a migração completa para `/api/v1` deve ser feita de modo compatível. Os contratos e invariantes da arquitetura final estão separados, porém Identity/JWT, outbox/RabbitMQ, workers independentes, analytics avançado e todas as telas administrativas ainda não estão integrados ao fluxo legado. Essas lacunas são documentadas explicitamente, sem stubs que finjam integração. Veja [architecture.md](docs/architecture.md).
 
 ## Licença
 
-Este projeto é distribuído sob os termos da [licença MIT](LICENSE).
+[MIT](LICENSE).

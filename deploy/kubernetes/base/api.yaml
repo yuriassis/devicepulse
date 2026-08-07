@@ -1,0 +1,24 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata: { name: api, namespace: devicepulse }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: devicepulse-api } }
+  template:
+    metadata: { labels: { app: devicepulse-api } }
+    spec:
+      securityContext: { runAsNonRoot: true, seccompProfile: { type: RuntimeDefault } }
+      containers:
+        - name: api
+          image: devicepulse/api:latest
+          ports: [{ containerPort: 8080 }]
+          envFrom: [{ configMapRef: { name: devicepulse } }, { secretRef: { name: devicepulse-secrets } }]
+          readinessProbe: { httpGet: { path: /health/ready, port: 8080 }, initialDelaySeconds: 10 }
+          livenessProbe: { httpGet: { path: /health/live, port: 8080 }, initialDelaySeconds: 10 }
+          resources: { requests: { cpu: 100m, memory: 128Mi }, limits: { cpu: 500m, memory: 512Mi } }
+          securityContext: { allowPrivilegeEscalation: false, capabilities: { drop: [ALL] } }
+---
+apiVersion: v1
+kind: Service
+metadata: { name: api, namespace: devicepulse }
+spec: { selector: { app: devicepulse-api }, ports: [{ port: 8080, targetPort: 8080 }] }

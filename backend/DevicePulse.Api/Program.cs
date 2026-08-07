@@ -11,7 +11,13 @@ builder.Services.AddControllers().AddJsonOptions(options =>
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<DevicePulseDbContext>(options =>
-    options.UseSqlite(builder.Configuration.GetConnectionString("DevicePulse")));
+{
+    var connection = builder.Configuration.GetConnectionString("DevicePulse");
+    if (builder.Environment.IsEnvironment("Testing")) options.UseSqlite(connection);
+    else options.UseNpgsql(connection, npgsql => npgsql.EnableRetryOnFailure());
+});
+builder.Services.AddSignalR();
+builder.Services.AddHealthChecks().AddDbContextCheck<DevicePulseDbContext>();
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IAlertService, AlertService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
@@ -22,6 +28,13 @@ builder.Services.AddHostedService(provider => provider.GetRequiredService<Autopi
 
 var app = builder.Build();
 
+app.Use(async (context, next) =>
+{
+    const string header = "X-Correlation-ID";
+    var correlationId = context.Request.Headers[header].FirstOrDefault() ?? Guid.NewGuid().ToString("N");
+    context.Response.Headers[header] = correlationId;
+    using (app.Logger.BeginScope(new Dictionary<string, object> { ["CorrelationId"] = correlationId })) await next();
+});
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseDefaultFiles();
 app.UseStaticFiles();
@@ -39,6 +52,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapHub<DevicePulse.Api.Realtime.DeviceUpdatesHub>("/hubs/device-updates");
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions { Predicate = _ => false });
+app.MapHealthChecks("/health/ready");
 app.MapFallbackToFile("index.html");
 
 app.Run();
