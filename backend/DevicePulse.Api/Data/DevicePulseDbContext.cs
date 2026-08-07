@@ -10,6 +10,8 @@ public sealed class DevicePulseDbContext(DbContextOptions<DevicePulseDbContext> 
 
     public DbSet<EquipmentReading> EquipmentReadings => Set<EquipmentReading>();
 
+    public DbSet<Alert> Alerts => Set<Alert>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         var equipment = modelBuilder.Entity<Equipment>();
@@ -27,5 +29,15 @@ public sealed class DevicePulseDbContext(DbContextOptions<DevicePulseDbContext> 
         reading.HasKey(item => item.Id);
         reading.Property(item => item.Source).HasConversion<string>().HasMaxLength(20);
         reading.HasIndex(item => new { item.EquipmentId, item.RecordedAt });
+
+        var alert = modelBuilder.Entity<Alert>();
+        alert.ToTable("Alerts");
+        alert.HasKey(item => item.Id);
+        alert.Property(item => item.Name).IsRequired().HasMaxLength(100);
+        alert.HasOne(item => item.Equipment)
+            .WithMany(item => item.Alerts)
+            .HasForeignKey(item => item.EquipmentId)
+            .OnDelete(DeleteBehavior.Cascade);
+        alert.HasIndex(item => item.EquipmentId);
     }
 }

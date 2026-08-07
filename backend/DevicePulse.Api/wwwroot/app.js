@@ -1,5 +1,5 @@
 const api = '/api';
-const state = { equipments: [], refreshTimer: null, dashboardRequest: null };
+const state = { equipments: [], alerts: [], refreshTimer: null, dashboardRequest: null };
 const $ = (selector, root = document) => root.querySelector(selector);
 const formatNumber = value => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2 }).format(value);
 const formatDate = value => new Intl.DateTimeFormat('pt-BR', { dateStyle: 'short', timeStyle: 'short' }).format(new Date(value));
@@ -30,16 +30,15 @@ function renderEquipments() {
   grid.replaceChildren();
   $('#equipment-empty').hidden = state.equipments.length !== 0;
   state.equipments.forEach(equipment => {
-    const isNormal = equipment.currentValue >= equipment.minimumValue && equipment.currentValue <= equipment.maximumValue;
     const span = equipment.maximumValue - equipment.minimumValue;
     const progress = span <= 0 ? 0 : Math.max(0, Math.min(100, (equipment.currentValue - equipment.minimumValue) / span * 100));
     const card = document.createElement('article');
     card.className = 'equipment-card';
     card.innerHTML = `
       <div class="card-top"><div><h3></h3><div class="source"></div></div><div class="menu-actions"><button class="icon-button edit" title="Editar" aria-label="Editar equipamento">✎</button><button class="icon-button danger delete" title="Excluir" aria-label="Excluir equipamento">⌫</button></div></div>
-      <div class="value-row"><div><span>Valor atual</span><strong>${formatNumber(equipment.currentValue)}</strong></div><div class="limits"><span>Faixa configurada</span><strong>${formatNumber(equipment.minimumValue)} — ${formatNumber(equipment.maximumValue)}</strong></div></div>
-      <div class="range" aria-label="Posição do valor na faixa"><span class="${isNormal ? '' : 'outside'}" style="width:${progress}%"></span></div>
-      <div class="value-row"><span>Atualizado em ${formatDate(equipment.updatedAt)}</span><span class="status-badge ${isNormal ? 'normal' : 'alert'}">${isNormal ? 'Dentro da faixa' : 'Fora da faixa'}</span></div>
+      <div class="value-row"><div><span>Valor atual</span><strong>${formatNumber(equipment.currentValue)}</strong></div><div class="limits"><span>Faixa do piloto automático</span><strong>${formatNumber(equipment.minimumValue)} — ${formatNumber(equipment.maximumValue)}</strong></div></div>
+      <div class="range" aria-label="Posição do valor na faixa do piloto automático"><span style="width:${progress}%"></span></div>
+      <div class="value-row"><span>Atualizado em ${formatDate(equipment.updatedAt)}</span></div>
       <div class="card-actions"><button class="button button-primary reading">＋ Registrar leitura</button><button class="button button-secondary history">Ver histórico</button></div>`;
     $('h3', card).textContent = equipment.name;
     $('.source', card).textContent = `Última origem: ${sourceLabel(equipment.lastReadingSource)}`;
@@ -51,6 +50,20 @@ function renderEquipments() {
   });
 }
 
+function renderAlerts() {
+  const list = $('#alert-list'); list.replaceChildren();
+  $('#alert-empty').hidden = state.alerts.length !== 0;
+  state.alerts.forEach(alert => {
+    const item = document.createElement('article');
+    item.className = `alert-item ${alert.isTriggered ? 'triggered' : 'idle'}`;
+    item.innerHTML = `<span class="alert-indicator" aria-hidden="true"></span><div class="alert-copy"><strong></strong><span class="alert-equipment-name"></span></div><div class="alert-range"><span>Intervalo</span><strong>${formatNumber(alert.minimumValue)} — ${formatNumber(alert.maximumValue)}</strong></div><span class="status-badge ${alert.isTriggered ? 'alert' : 'normal'}">${alert.isTriggered ? 'Acionado' : 'Normal'}</span><button class="icon-button danger delete-alert" title="Excluir" aria-label="Excluir alerta">⌫</button>`;
+    $('.alert-copy strong', item).textContent = alert.name;
+    $('.alert-equipment-name', item).textContent = `${alert.equipmentName} · leitura ${formatNumber(alert.currentValue)}`;
+    $('.delete-alert', item).addEventListener('click', () => deleteAlert(alert));
+    list.append(item);
+  });
+}
+
 async function loadDashboard({ silent = false } = {}) {
   if (state.dashboardRequest) return state.dashboardRequest;
   if (!silent) {
@@ -59,14 +72,16 @@ async function loadDashboard({ silent = false } = {}) {
   }
   state.dashboardRequest = (async () => {
     try {
-      const [summary, equipments, autopilot] = await Promise.all([request('/dashboard/summary'), request('/equipments'), request('/autopilot')]);
+      const [summary, equipments, alerts, autopilot] = await Promise.all([request('/dashboard/summary'), request('/equipments'), request('/alerts'), request('/autopilot')]);
       state.equipments = equipments;
+      state.alerts = alerts;
       $('#equipment-count').textContent = summary.equipmentCount;
       $('#reading-count').textContent = summary.readingCount;
       $('#manual-count').textContent = summary.manualReadingCount;
       $('#autopilot-count').textContent = summary.autopilotReadingCount;
       renderAutopilot(autopilot);
       renderEquipments();
+      renderAlerts();
     } catch (error) {
       if (!silent) showMessage(`Falha ao carregar o painel: ${error.message}`);
     } finally {
@@ -109,6 +124,31 @@ async function toggleAutopilot() {
     showMessage(autopilot.isRunning ? 'Piloto automático iniciado.' : 'Piloto automático interrompido.', true);
   } catch (error) { showMessage(error.message); }
   finally { button.disabled = false; }
+}
+
+function openAlertDialog() {
+  if (!state.equipments.length) { showMessage('Cadastre um equipamento antes de criar um alerta.'); return; }
+  const form = $('#alert-form'); form.reset(); $('.form-error', form).hidden = true;
+  const select = $('#alert-equipment'); select.replaceChildren();
+  state.equipments.forEach(equipment => select.add(new Option(equipment.name, equipment.id)));
+  $('#alert-dialog').showModal();
+}
+
+async function submitAlert(event) {
+  event.preventDefault();
+  const form = event.currentTarget, button = $('.submit-button', form), error = $('.form-error', form);
+  button.disabled = true; error.hidden = true;
+  try {
+    await request('/alerts', { method: 'POST', body: JSON.stringify({ name: $('#alert-name').value.trim(), equipmentId: Number($('#alert-equipment').value), minimumValue: Number($('#alert-minimum').value), maximumValue: Number($('#alert-maximum').value) }) });
+    $('#alert-dialog').close(); showMessage('Alerta cadastrado.', true); await loadDashboard();
+  } catch (err) { error.textContent = err.message; error.hidden = false; }
+  finally { button.disabled = false; }
+}
+
+async function deleteAlert(alert) {
+  if (!confirm(`Excluir o alerta “${alert.name}”?`)) return;
+  try { await request(`/alerts/${alert.id}`, { method: 'DELETE' }); showMessage('Alerta excluído.', true); await loadDashboard(); }
+  catch (error) { showMessage(error.message); }
 }
 
 function openEquipmentDialog(equipment = null) {
@@ -179,12 +219,15 @@ async function openHistory(equipment) {
   } catch (error) { content.innerHTML = `<div class="history-empty"></div>`; $('.history-empty', content).textContent = error.message; }
 }
 
+$('#new-alert').addEventListener('click', openAlertDialog);
 $('#new-equipment').addEventListener('click', () => openEquipmentDialog());
 $('#refresh').addEventListener('click', loadDashboard);
 $('#autopilot-toggle').addEventListener('click', toggleAutopilot);
 $('#equipment-form').addEventListener('submit', submitEquipment);
 $('#reading-form').addEventListener('submit', submitReading);
+$('#alert-form').addEventListener('submit', submitAlert);
 document.querySelectorAll('.close-dialog').forEach(button => button.addEventListener('click', () => $('#equipment-dialog').close()));
 document.querySelectorAll('.close-reading').forEach(button => button.addEventListener('click', () => $('#reading-dialog').close()));
+document.querySelectorAll('.close-alert').forEach(button => button.addEventListener('click', () => $('#alert-dialog').close()));
 document.querySelectorAll('.close-history').forEach(button => button.addEventListener('click', () => $('#history-dialog').close()));
 loadDashboard();

@@ -16,6 +16,24 @@ partial class DevicePulseDbContextModelSnapshot : ModelSnapshot
     {
         modelBuilder.HasAnnotation("ProductVersion", "8.0.22");
 
+        modelBuilder.Entity<Alert>(entity =>
+        {
+            entity.Property(item => item.Id).ValueGeneratedOnAdd().HasColumnType("INTEGER");
+            entity.Property(item => item.CreatedAt).HasColumnType("TEXT");
+            entity.Property(item => item.EquipmentId).HasColumnType("INTEGER");
+            entity.Property(item => item.MaximumValue).HasColumnType("REAL");
+            entity.Property(item => item.MinimumValue).HasColumnType("REAL");
+            entity.Property(item => item.Name).IsRequired().HasMaxLength(100).HasColumnType("TEXT");
+            entity.HasKey(item => item.Id);
+            entity.HasIndex(item => item.EquipmentId);
+            entity.ToTable("Alerts");
+            entity.HasOne(item => item.Equipment)
+                .WithMany(item => item.Alerts)
+                .HasForeignKey(item => item.EquipmentId)
+                .OnDelete(DeleteBehavior.Cascade)
+                .IsRequired();
+        });
+
         modelBuilder.Entity<Equipment>(entity =>
         {
             entity.Property(item => item.Id).ValueGeneratedOnAdd().HasColumnType("INTEGER");

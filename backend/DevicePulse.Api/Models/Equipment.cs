@@ -17,4 +17,6 @@ public sealed class Equipment
     public DateTime UpdatedAt { get; set; }
 
     public ICollection<EquipmentReading> Readings { get; set; } = [];
+
+    public ICollection<Alert> Alerts { get; set; } = [];
 }
