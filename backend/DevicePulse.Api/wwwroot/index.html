@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Painel operacional do DevicePulse">
+  <title>DevicePulse | Painel operacional</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#" aria-label="DevicePulse - início">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>Device<span>Pulse</span></span>
+    </a>
+    <div class="system-status"><span></span> Sistema operacional</div>
+  </header>
+
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">VISÃO GERAL</p>
+        <h1>Painel operacional</h1>
+        <p>Acompanhe seus equipamentos e registre novas medições em tempo real.</p>
+      </div>
+      <button class="button button-primary" id="new-equipment" type="button">＋ Novo equipamento</button>
+    </section>
+
+    <div id="global-message" class="message" role="alert" hidden></div>
+
+    <section class="metrics" aria-label="Resumo operacional">
+      <article><span class="metric-icon blue">▣</span><div><strong id="equipment-count">—</strong><span>Equipamentos</span></div></article>
+      <article><span class="metric-icon violet">⌁</span><div><strong id="reading-count">—</strong><span>Leituras registradas</span></div></article>
+      <article><span class="metric-icon green">✓</span><div><strong id="manual-count">—</strong><span>Leituras manuais</span></div></article>
+      <article><span class="metric-icon amber">ϟ</span><div><strong id="autopilot-count">—</strong><span>Piloto automático</span></div></article>
+    </section>
+
+    <section class="panel">
+      <div class="panel-header">
+        <div><h2>Equipamentos</h2><p>Monitore valores e limites configurados</p></div>
+        <button class="button button-secondary" id="refresh" type="button">↻ Atualizar</button>
+      </div>
+      <div id="equipment-loading" class="state"><span class="spinner"></span> Carregando equipamentos...</div>
+      <div id="equipment-empty" class="state" hidden><span class="empty-icon">◇</span><strong>Nenhum equipamento cadastrado</strong><p>Cadastre o primeiro equipamento para começar a monitorar.</p></div>
+      <div id="equipment-grid" class="equipment-grid" aria-live="polite"></div>
+    </section>
+  </main>
+
+  <dialog id="equipment-dialog">
+    <form id="equipment-form">
+      <div class="dialog-header"><div><p class="eyebrow">CONFIGURAÇÃO</p><h2 id="equipment-dialog-title">Novo equipamento</h2></div><button class="icon-button close-dialog" type="button" aria-label="Fechar">×</button></div>
+      <input id="equipment-id" type="hidden">
+      <label>Nome <input id="equipment-name" maxlength="120" required placeholder="Ex.: Sensor da caldeira"></label>
+      <div class="form-row"><label>Valor mínimo <input id="minimum-value" type="number" step="any" required></label><label>Valor máximo <input id="maximum-value" type="number" step="any" required></label></div>
+      <label id="current-value-field">Valor atual <input id="current-value" type="number" step="any" required></label>
+      <div class="form-error" role="alert" hidden></div>
+      <div class="dialog-actions"><button class="button button-secondary close-dialog" type="button">Cancelar</button><button class="button button-primary submit-button" type="submit">Salvar equipamento</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="reading-dialog">
+    <form id="reading-form">
+      <div class="dialog-header"><div><p class="eyebrow">NOVA MEDIÇÃO</p><h2 id="reading-dialog-title">Registrar leitura</h2></div><button class="icon-button close-reading" type="button" aria-label="Fechar">×</button></div>
+      <input id="reading-equipment-id" type="hidden">
+      <label>Valor da leitura <input id="reading-value" type="number" step="any" required autofocus></label>
+      <div class="form-error" role="alert" hidden></div>
+      <div class="dialog-actions"><button class="button button-secondary close-reading" type="button">Cancelar</button><button class="button button-primary submit-button" type="submit">Registrar leitura</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="history-dialog" class="wide-dialog">
+    <div class="dialog-header"><div><p class="eyebrow">HISTÓRICO</p><h2 id="history-title">Leituras</h2></div><button class="icon-button close-history" type="button" aria-label="Fechar">×</button></div>
+    <div id="history-content" class="history-content"></div>
+  </dialog>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

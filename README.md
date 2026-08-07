@@ -7,13 +7,14 @@ um resumo operacional para dashboards.
 
 > **Última atualização do planejamento:** 7 de agosto de 2026
 >
-> **Etapa atual:** 4 — Interface web
+> **Etapa atual:** 5 — Piloto automático
 >
-> **Próxima entrega:** dashboard web consumindo a API existente
+> **Próxima entrega:** geração periódica e controles do piloto automático
 
-O backend do MVP está funcional em .NET 8 e persiste os dados em SQLite. Ele já
-permite gerenciar equipamentos, registrar leituras manuais ou de piloto
-automático, consultar o histórico e obter os totais usados pelo dashboard.
+O MVP possui uma API funcional em .NET 8, com persistência em SQLite, e uma
+interface web responsiva servida pela própria aplicação. Pelo painel já é
+possível gerenciar equipamentos, registrar leituras manuais, consultar o
+histórico e acompanhar o resumo operacional.
 
 ## Planejamento
 
@@ -26,8 +27,8 @@ atendidos e as verificações relacionadas tiverem sido executadas.
 | 1. Fundação do backend | ✅ Concluída | Solução .NET 8, API, SQLite, Entity Framework Core, migração inicial, Swagger e tratamento centralizado de erros | A aplicação compila, cria/atualiza o banco e expõe a documentação em desenvolvimento |
 | 2. Gestão de equipamentos | ✅ Concluída | Cadastro, listagem, consulta, edição e exclusão de equipamentos, com validações de domínio | Operações CRUD cobertas por testes automatizados e nomes duplicados rejeitados |
 | 3. Leituras e resumo operacional | ✅ Concluída | Registro e histórico de leituras, identificação da origem e resumo agregado para o dashboard | Serviços de leituras e resumo cobertos por testes automatizados |
-| 4. Interface web | 🚧 Em andamento | Dashboard responsivo, listagem e formulários de equipamentos e visualização do histórico | Fluxos principais podem ser executados pela interface e possuem estados de carregamento, vazio e erro |
-| 5. Piloto automático | ⏳ Planejada | Geração periódica de leituras automáticas e controles para ativar ou interromper a simulação | Leituras são geradas sem intervenção manual, persistidas com a origem correta e refletidas no dashboard |
+| 4. Interface web | ✅ Concluída | Dashboard responsivo, listagem e formulários de equipamentos e visualização do histórico | Fluxos principais podem ser executados pela interface e possuem estados de carregamento, vazio e erro |
+| 5. Piloto automático | 🚧 Em andamento | Geração periódica de leituras automáticas e controles para ativar ou interromper a simulação | Leituras são geradas sem intervenção manual, persistidas com a origem correta e refletidas no dashboard |
 | 6. Qualidade e entrega | ⏳ Planejada | Testes de integração, automação de CI, documentação de implantação e empacotamento da aplicação | Pipeline reproduzível executa build e testes, e o sistema pode ser implantado seguindo a documentação |
 
 ### Registro de conclusão das etapas
@@ -37,6 +38,7 @@ atendidos e as verificações relacionadas tiverem sido executadas.
 | 6 de agosto de 2026 | 1. Fundação do backend | Estrutura da solução, persistência SQLite, migração inicial e infraestrutura HTTP concluídas |
 | 6 de agosto de 2026 | 2. Gestão de equipamentos | CRUD e validações de equipamentos concluídos |
 | 7 de agosto de 2026 | 3. Leituras e resumo operacional | Histórico de leituras e endpoint de resumo concluídos |
+| 7 de agosto de 2026 | 4. Interface web | Painel responsivo, gestão de equipamentos, registro manual e histórico de leituras concluídos |
 
 ### Como manter este planejamento atualizado
 
@@ -64,6 +66,10 @@ devem ser atualizados na tabela, sem marcá-la como concluída antecipadamente.
 - registro de leituras com origem `Manual` ou `Autopilot`;
 - consulta das 1 a 100 leituras mais recentes de um equipamento;
 - resumo com quantidades de equipamentos e leituras por origem;
+- painel web responsivo com indicadores e estado operacional dos equipamentos;
+- cadastro, edição e exclusão de equipamentos diretamente pela interface;
+- registro manual e consulta das 100 leituras mais recentes pela interface;
+- estados visuais de carregamento, conteúdo vazio, sucesso e erro;
 - respostas de erro padronizadas para validações e conflitos;
 - Swagger UI no ambiente de desenvolvimento.
 
@@ -86,6 +92,7 @@ devem ser atualizados na tabela, sem marcá-la como concluída antecipadamente.
 - Entity Framework Core 8;
 - SQLite;
 - Swagger/OpenAPI;
+- HTML, CSS e JavaScript sem dependências externas;
 - xUnit e SQLite em memória nos testes.
 
 ## Como executar
@@ -104,7 +111,8 @@ dotnet run --project backend/DevicePulse.Api
 A aplicação aplica automaticamente as migrações ao iniciar. Os endereços locais
 e o ambiente podem ser ajustados em
 `backend/DevicePulse.Api/Properties/launchSettings.json`. Em desenvolvimento, a
-documentação interativa fica disponível em `/swagger`.
+interface web fica disponível na raiz (`/`) e a documentação interativa fica
+disponível em `/swagger`.
 
 ### Testes
 
@@ -116,7 +124,7 @@ dotnet test backend/DevicePulse.sln
 
 ```text
 backend/
-├── DevicePulse.Api/      # API, domínio, serviços, persistência e migrações
+├── DevicePulse.Api/      # API, domínio, persistência e interface web em wwwroot
 ├── DevicePulse.Tests/    # testes automatizados dos serviços
 └── DevicePulse.sln       # solução .NET
 ```
