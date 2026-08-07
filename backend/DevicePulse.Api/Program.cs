@@ -14,6 +14,10 @@ builder.Services.AddDbContext<DevicePulseDbContext>(options =>
     options.UseSqlite(builder.Configuration.GetConnectionString("DevicePulse")));
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IAutopilotReadingGenerator, AutopilotReadingGenerator>();
+builder.Services.AddSingleton<AutopilotService>();
+builder.Services.AddSingleton<IAutopilotService>(provider => provider.GetRequiredService<AutopilotService>());
+builder.Services.AddHostedService(provider => provider.GetRequiredService<AutopilotService>());
 
 var app = builder.Build();
 

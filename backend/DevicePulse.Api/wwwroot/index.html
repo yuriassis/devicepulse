@@ -38,7 +38,10 @@
     <section class="panel">
       <div class="panel-header">
         <div><h2>Equipamentos</h2><p>Monitore valores e limites configurados</p></div>
-        <button class="button button-secondary" id="refresh" type="button">↻ Atualizar</button>
+        <div class="panel-controls">
+          <div class="autopilot-control"><span id="autopilot-state" class="status-badge">Piloto parado</span><button class="button button-secondary" id="autopilot-toggle" type="button">Iniciar piloto</button></div>
+          <button class="button button-secondary" id="refresh" type="button">↻ Atualizar</button>
+        </div>
       </div>
       <div id="equipment-loading" class="state"><span class="spinner"></span> Carregando equipamentos...</div>
       <div id="equipment-empty" class="state" hidden><span class="empty-icon">◇</span><strong>Nenhum equipamento cadastrado</strong><p>Cadastre o primeiro equipamento para começar a monitorar.</p></div>
