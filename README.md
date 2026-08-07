@@ -7,9 +7,9 @@ um resumo operacional para dashboards.
 
 > **Última atualização do planejamento:** 7 de agosto de 2026
 >
-> **Etapa atual:** 6 — Qualidade e entrega
+> **Etapa atual:** MVP concluído — evolução contínua
 >
-> **Próxima entrega:** testes de integração, CI e documentação de implantação
+> **Próxima entrega:** observabilidade, autenticação e novos canais de notificação
 
 O MVP possui uma API funcional em .NET 8, com persistência em SQLite, e uma
 interface web responsiva servida pela própria aplicação. Pelo painel já é
@@ -29,7 +29,7 @@ atendidos e as verificações relacionadas tiverem sido executadas.
 | 3. Leituras e resumo operacional | ✅ Concluída | Registro e histórico de leituras, identificação da origem e resumo agregado para o dashboard | Serviços de leituras e resumo cobertos por testes automatizados |
 | 4. Interface web | ✅ Concluída | Dashboard responsivo, listagem e formulários de equipamentos e visualização do histórico | Fluxos principais podem ser executados pela interface e possuem estados de carregamento, vazio e erro |
 | 5. Piloto automático | ✅ Concluída | Geração periódica de leituras automáticas e controles para ativar ou interromper a simulação | Leituras são geradas sem intervenção manual, persistidas com a origem correta e refletidas no dashboard |
-| 6. Qualidade e entrega | ⏳ Planejada | Testes de integração, automação de CI, documentação de implantação e empacotamento da aplicação | Pipeline reproduzível executa build e testes, e o sistema pode ser implantado seguindo a documentação |
+| 6. Qualidade e entrega | ✅ Concluída | Testes de integração, automação de CI, documentação de implantação e empacotamento da aplicação | Pipeline reproduzível executa build, testes e valida a imagem, e o sistema pode ser implantado seguindo a documentação |
 
 ### Registro de conclusão das etapas
 
@@ -40,6 +40,7 @@ atendidos e as verificações relacionadas tiverem sido executadas.
 | 7 de agosto de 2026 | 3. Leituras e resumo operacional | Histórico de leituras e endpoint de resumo concluídos |
 | 7 de agosto de 2026 | 4. Interface web | Painel responsivo, gestão de equipamentos, registro manual e histórico de leituras concluídos |
 | 7 de agosto de 2026 | 5. Piloto automático | Geração periódica, persistência de leituras e controles de início e parada concluídos |
+| 7 de agosto de 2026 | 6. Qualidade e entrega | Testes HTTP de integração, pipeline de CI, imagem Docker, Compose e instruções de implantação concluídos |
 
 ### Como manter este planejamento atualizado
 
@@ -74,7 +75,10 @@ devem ser atualizados na tabela, sem marcá-la como concluída antecipadamente.
 - controles de início e parada do piloto automático no painel;
 - estados visuais de carregamento, conteúdo vazio, sucesso e erro;
 - respostas de erro padronizadas para validações e conflitos;
-- Swagger UI no ambiente de desenvolvimento.
+- Swagger UI no ambiente de desenvolvimento;
+- testes de integração dos fluxos HTTP com banco isolado;
+- pipeline de CI para restore, build, testes, cobertura e construção da imagem;
+- empacotamento em contêiner com persistência do banco SQLite.
 
 ## Endpoints do MVP
 
@@ -130,14 +134,60 @@ pode ser controlado pelo painel ou pelos endpoints da API.
 dotnet test backend/DevicePulse.sln
 ```
 
+Os testes incluem unidades dos serviços e cenários de integração que inicializam
+a aplicação completa, aplicam as migrações em um banco temporário e exercitam os
+endpoints HTTP. A automação em `.github/workflows/ci.yml` executa restore, build,
+testes com coleta de cobertura e também valida a construção da imagem Docker em
+pushes e pull requests.
+
+## Implantação com Docker
+
+Com Docker Engine e Docker Compose instalados, construa e inicie a aplicação:
+
+```bash
+docker compose up --build -d
+```
+
+O painel estará disponível em `http://localhost:8080`. O volume nomeado
+`devicepulse-data` mantém o arquivo SQLite entre recriações do contêiner. Para
+acompanhar a inicialização e interromper o serviço:
+
+```bash
+docker compose logs -f devicepulse
+docker compose down
+```
+
+Para remover também os dados persistidos, use `docker compose down --volumes`.
+Em uma plataforma de contêineres, publique a imagem criada pelo `Dockerfile`,
+exponha a porta `8080` e monte armazenamento gravável em `/data`.
+
+### Configuração de produção
+
+As opções do ASP.NET Core podem ser sobrescritas por variáveis de ambiente com
+dois sublinhados como separador. As principais opções são:
+
+| Variável | Padrão da imagem | Finalidade |
+| --- | --- | --- |
+| `ConnectionStrings__DevicePulse` | `Data Source=/data/devicepulse.db;Default Timeout=30` | Caminho e opções do banco SQLite |
+| `Autopilot__IntervalSeconds` | `10` | Intervalo, em segundos, entre ciclos automáticos |
+| `ASPNETCORE_HTTP_PORTS` | `8080` | Porta HTTP interna do contêiner |
+
+As migrações são aplicadas automaticamente na inicialização. Em produção,
+proteja o diretório persistente com backups e não execute mais de uma réplica
+contra o mesmo arquivo SQLite. Para escalar horizontalmente, a persistência deve
+ser migrada para um banco de dados compartilhado.
+
 ## Estrutura do repositório
 
 ```text
 backend/
 ├── DevicePulse.Api/      # API, domínio, persistência e interface web em wwwroot
-├── DevicePulse.Tests/    # testes automatizados dos serviços
+├── DevicePulse.Tests/    # testes unitários dos serviços e de integração HTTP
 └── DevicePulse.sln       # solução .NET
 ```
+
+Na raiz, `Dockerfile` e `compose.yaml` definem o empacotamento e a execução local,
+enquanto `.github/workflows/ci.yml` mantém as verificações automatizadas.
 
 ## Licença
 
