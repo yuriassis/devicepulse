@@ -18,6 +18,8 @@ builder.Services.AddScoped<IDashboardService, DashboardService>();
 var app = builder.Build();
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
@@ -32,6 +34,7 @@ if (app.Environment.IsDevelopment())
 }
 
 app.MapControllers();
+app.MapFallbackToFile("index.html");
 
 app.Run();
 
