@@ -1,0 +1,13 @@
+.git
+.github
+.env
+**/bin
+**/obj
+**/node_modules
+**/TestResults
+**/coverage
+**/*.db
+**/*.db-shm
+**/*.db-wal
+publish
+artifacts

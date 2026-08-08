@@ -33,20 +33,28 @@ docs/                         decisões e operação
 
 ## Execução local
 
-O guia [Recursos e execução local](docs/local-development.md) detalha os requisitos de hardware e software, portas, variáveis, duas formas de subir o ambiente completo e como preparar e operar o simulador automático. O caminho mais simples para executar frontend, API, banco e observabilidade é o Docker Compose.
+O guia [Recursos e execução local](docs/local-development.md) detalha os requisitos, as formas de execução e o simulador. O caminho recomendado não usa Docker: uma única publicação ASP.NET serve a interface React e grava os dados em SQLite.
 
-Para desenvolvimento sem colocar frontend e API em containers, os pré-requisitos principais são .NET SDK 8, Node.js 20, npm e PostgreSQL 16:
+Para desenvolvimento, instale .NET SDK 8, Node.js 20 e npm. PostgreSQL é opcional:
 
 ```bash
-export ConnectionStrings__DevicePulse='Host=localhost;Database=devicepulse;Username=devicepulse;Password=<senha>'
 dotnet restore backend/DevicePulse.sln
 dotnet run --project backend/DevicePulse.Api
 cd frontend && npm install && npm run dev
 ```
 
+Para gerar o pacote de processo único e iniciá-lo com o runtime .NET 8:
+
+```bash
+./scripts/publish-local.sh
+./publish/devicepulse/run.sh
+```
+
+No Windows, execute `scripts/publish-local.ps1` para publicar e `publish/devicepulse/run.ps1` para iniciar. Os dados ficam em `publish/devicepulse/data/devicepulse.db`; copie esse arquivo com a aplicação parada para fazer backup.
+
 As datas persistidas e os contratos usam UTC. No perfil `Development`, Swagger fica em `http://localhost:5000/swagger`; o frontend Vite fica em `http://localhost:5173`, readiness em `/health/ready`, liveness em `/health/live` e SignalR em `/hubs/device-updates`.
 
-## Docker Compose
+## Docker Compose opcional
 
 Nenhuma senha real é versionada. Copie o modelo e altere todos os valores antes de iniciar:
 
@@ -56,14 +64,20 @@ docker compose up --build
 docker compose ps
 ```
 
+O comando padrão inicia somente PostgreSQL, API e frontend. Mensageria e observabilidade são opcionais:
+
+```bash
+docker compose --profile messaging --profile observability up --build
+```
+
 | Serviço | Endereço |
 |---|---|
 | Aplicação | http://localhost:3000 |
 | API | http://localhost:5000 |
-| RabbitMQ Management | http://localhost:15672 |
-| Prometheus | http://localhost:9090 |
-| Grafana | http://localhost:3001 |
-| Jaeger | http://localhost:16686 |
+| RabbitMQ Management (profile `messaging`) | http://localhost:15672 |
+| Prometheus (profile `observability`) | http://localhost:9090 |
+| Grafana (profile `observability`) | http://localhost:3001 |
+| Jaeger (profile `observability`) | http://localhost:16686 |
 
 O volume `devicepulse-postgres` preserva dados entre reinícios. Migrações devem ser aplicadas por um job único antes de aumentar réplicas; não habilite migração automática concorrente em produção.
 
@@ -81,6 +95,7 @@ npm run lint
 npm test
 npm run build
 docker compose config
+docker compose --profile messaging --profile observability config
 kubectl kustomize deploy/kubernetes/base
 ```
 
@@ -88,7 +103,8 @@ kubectl kustomize deploy/kubernetes/base
 
 | Variável | Obrigatória | Finalidade |
 |---|---:|---|
-| `ConnectionStrings__DevicePulse` | sim | conexão PostgreSQL |
+| `ConnectionStrings__DevicePulse` | sim | arquivo SQLite ou conexão PostgreSQL, conforme o provider |
+| `Database__Provider` | não | `Sqlite` (padrão) ou `Postgres` |
 | `POSTGRES_PASSWORD` | Compose | senha local do PostgreSQL |
 | `RABBITMQ_PASSWORD` | Compose | senha local do RabbitMQ |
 | `GRAFANA_PASSWORD` | Compose | administrador local do Grafana |

@@ -6,6 +6,7 @@ services:
     volumes: [devicepulse-postgres:/var/lib/postgresql/data]
     healthcheck: { test: [CMD-SHELL, "pg_isready -U devicepulse"], interval: 5s, timeout: 3s, retries: 20 }
   rabbitmq:
+    profiles: [messaging]
     image: rabbitmq:3.13-management-alpine
     environment: { RABBITMQ_DEFAULT_USER: devicepulse, RABBITMQ_DEFAULT_PASS: "${RABBITMQ_PASSWORD:?set RABBITMQ_PASSWORD}" }
     ports: ["15672:15672"]
@@ -14,30 +15,34 @@ services:
     build: { context: ., dockerfile: backend/DevicePulse.Api/Dockerfile }
     environment:
       ASPNETCORE_ENVIRONMENT: Production
+      Database__Provider: Postgres
       ConnectionStrings__DevicePulse: "Host=postgres;Database=devicepulse;Username=devicepulse;Password=${POSTGRES_PASSWORD}"
-      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
     ports: ["5000:8080"]
-    depends_on: { postgres: { condition: service_healthy }, rabbitmq: { condition: service_healthy } }
+    depends_on: { postgres: { condition: service_healthy } }
     healthcheck: { test: [CMD-SHELL, "wget -qO- http://localhost:8080/health/live || exit 1"], interval: 10s, timeout: 3s, retries: 12 }
   frontend:
     build: { context: ., dockerfile: frontend/Dockerfile }
     ports: ["3000:8080"]
     depends_on: { api: { condition: service_healthy } }
   otel-collector:
+    profiles: [observability]
     image: otel/opentelemetry-collector-contrib:0.108.0
     command: [--config=/etc/otel/config.yaml]
     volumes: [./deploy/docker/otel/config.yaml:/etc/otel/config.yaml:ro]
     ports: ["8889:8889"]
   prometheus:
+    profiles: [observability]
     image: prom/prometheus:v2.54.1
     volumes: [./deploy/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro]
     ports: ["9090:9090"]
   grafana:
+    profiles: [observability]
     image: grafana/grafana:11.2.0
     environment: { GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_PASSWORD:?set GRAFANA_PASSWORD}" }
     volumes: [./deploy/docker/grafana/provisioning:/etc/grafana/provisioning:ro]
     ports: ["3001:3000"]
   jaeger:
+    profiles: [observability]
     image: jaegertracing/all-in-one:1.60
     ports: ["16686:16686", "4317"]
 volumes: { devicepulse-postgres: {} }

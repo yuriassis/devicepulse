@@ -29,3 +29,12 @@ jobs:
         working-directory: frontend
       - run: npm run build
         working-directory: frontend
+      - name: Validate Compose configurations
+        run: |
+          cp .env.example .env
+          docker compose config --quiet
+          docker compose --profile messaging --profile observability config --quiet
+      - name: Build and limit the Docker-free distribution
+        run: |
+          ./scripts/publish-local.sh
+          test "$(du -sm publish/devicepulse | cut -f1)" -le 100

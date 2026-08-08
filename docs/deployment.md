@@ -2,7 +2,11 @@
 
 ## Compose
 
-Use `cp .env.example .env && docker compose up --build`. PostgreSQL usa volume nomeado. Credenciais vêm apenas do ambiente.
+Docker é opcional. Use `cp .env.example .env && docker compose up --build` para o ambiente mínimo com PostgreSQL, API e frontend. Ative RabbitMQ com `--profile messaging` e a pilha de telemetria com `--profile observability`. PostgreSQL usa volume nomeado e credenciais vêm apenas do ambiente.
+
+## Pacote local
+
+`scripts/publish-local.sh` e `scripts/publish-local.ps1` geram uma distribuição framework-dependent em `publish/devicepulse`. Ela reúne frontend e API, usa SQLite por padrão e precisa apenas do runtime ASP.NET Core 8. Os launchers mantêm o banco em `data/devicepulse.db`.
 
 ## Kubernetes e OpenShift
 
