@@ -12,9 +12,16 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<DevicePulseDbContext>(options =>
 {
-    var connection = builder.Configuration.GetConnectionString("DevicePulse");
-    if (builder.Environment.IsEnvironment("Testing")) options.UseSqlite(connection);
-    else options.UseNpgsql(connection, npgsql => npgsql.EnableRetryOnFailure());
+    var connection = builder.Configuration.GetConnectionString("DevicePulse")
+        ?? throw new InvalidOperationException("ConnectionStrings:DevicePulse is required.");
+    var provider = builder.Configuration["Database:Provider"] ?? "Sqlite";
+
+    if (provider.Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+        options.UseSqlite(connection);
+    else if (provider.Equals("Postgres", StringComparison.OrdinalIgnoreCase))
+        options.UseNpgsql(connection, npgsql => npgsql.EnableRetryOnFailure());
+    else
+        throw new InvalidOperationException("Database:Provider must be either 'Sqlite' or 'Postgres'.");
 });
 builder.Services.AddSignalR();
 builder.Services.AddHealthChecks().AddDbContextCheck<DevicePulseDbContext>();
@@ -27,6 +34,18 @@ builder.Services.AddSingleton<IAutopilotService>(provider => provider.GetRequire
 builder.Services.AddHostedService(provider => provider.GetRequiredService<AutopilotService>());
 
 var app = builder.Build();
+
+if ((builder.Configuration["Database:Provider"] ?? "Sqlite")
+    .Equals("Sqlite", StringComparison.OrdinalIgnoreCase))
+{
+    var connectionString = builder.Configuration.GetConnectionString("DevicePulse")!;
+    var dataSource = new Microsoft.Data.Sqlite.SqliteConnectionStringBuilder(connectionString).DataSource;
+    if (!string.IsNullOrWhiteSpace(dataSource) && dataSource != ":memory:")
+    {
+        var databaseDirectory = Path.GetDirectoryName(Path.GetFullPath(dataSource));
+        if (databaseDirectory is not null) Directory.CreateDirectory(databaseDirectory);
+    }
+}
 
 app.Use(async (context, next) =>
 {

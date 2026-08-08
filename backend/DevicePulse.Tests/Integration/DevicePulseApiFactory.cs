@@ -17,6 +17,7 @@ public sealed class DevicePulseApiFactory : WebApplicationFactory<Program>
         {
             configuration.AddInMemoryCollection(new Dictionary<string, string?>
             {
+                ["Database:Provider"] = "Sqlite",
                 ["ConnectionStrings:DevicePulse"] = $"Data Source={databasePath}",
                 ["Autopilot:IntervalSeconds"] = "3600"
             });

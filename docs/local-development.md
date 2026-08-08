@@ -1,16 +1,25 @@
 # Recursos e execução local
 
-Este guia mostra como executar o DevicePulse completo (interface web, API, banco e simulador), tanto com Docker Compose quanto com os processos de desenvolvimento na máquina.
+Este guia mostra como executar o DevicePulse completo sem Docker, durante o desenvolvimento ou, opcionalmente, com Docker Compose.
 
 ## 1. Recursos necessários
 
-### Opção recomendada: Docker Compose
+### Opção recomendada: pacote local sem Docker
+
+- runtime .NET 8 para executar o pacote pronto;
+- cerca de 150 MB livres para aplicação e banco inicial;
+- 2 GB de RAM livre e 2 CPUs;
+- Git, .NET SDK 8, Node.js 20 e npm somente para gerar o pacote a partir do código.
+
+O pacote usa SQLite, serve a interface React pela própria API e executa como um único processo. Não exige PostgreSQL, Node.js ou Docker depois de publicado.
+
+### Opção Docker Compose
 
 - Docker Engine 24 ou Docker Desktop recente, com o plugin Compose v2 (`docker compose`);
 - Git para obter e atualizar o repositório;
 - 4 GB de RAM livres e 2 CPUs disponíveis como mínimo funcional;
 - 8 GB de RAM livres e 4 CPUs recomendados para executar também Grafana, Prometheus, Jaeger, RabbitMQ e OpenTelemetry sem contenção;
-- aproximadamente 6 GB de disco livre para imagens, camadas de build, dependências e o volume PostgreSQL;
+- aproximadamente 2 GB de disco livre para o ambiente mínimo, ou 6 GB ao incluir mensageria e observabilidade;
 - `curl` (ou outro cliente HTTP) para preparar e controlar o simulador.
 
 Não é necessário instalar .NET, Node.js ou PostgreSQL nessa opção: as imagens do Compose fornecem os runtimes e serviços. Em Docker Desktop, confirme em **Settings > Resources** que memória e CPUs suficientes foram atribuídas à VM do Docker.
@@ -19,11 +28,11 @@ Não é necessário instalar .NET, Node.js ou PostgreSQL nessa opção: as image
 
 - .NET SDK 8 (não apenas o runtime), verificado com `dotnet --info`;
 - Node.js 20 e npm, verificados com `node --version` e `npm --version`;
-- PostgreSQL 16 acessível pela máquina;
+- PostgreSQL 16 acessível pela máquina somente se esse provider for escolhido;
 - Git e `curl`;
 - opcionalmente Docker Compose para iniciar somente PostgreSQL e os serviços auxiliares.
 
-O frontend e a API, isoladamente, normalmente cabem em 2 GB de RAM livre e 2 CPUs. PostgreSQL precisa de um banco chamado `devicepulse`, um usuário com permissão para criar/alterar o schema e conectividade na porta configurada. A API aplica as migrations do Entity Framework ao iniciar, portanto essa permissão é necessária.
+O frontend e a API, isoladamente, normalmente cabem em 2 GB de RAM livre e 2 CPUs. SQLite funciona sem preparação. Ao escolher PostgreSQL, ele precisa de um banco chamado `devicepulse`, um usuário com permissão para criar/alterar o schema e conectividade na porta configurada. A API aplica as migrations do Entity Framework ao iniciar, portanto essa permissão é necessária.
 
 ## 2. Portas usadas
 
@@ -40,7 +49,33 @@ O frontend e a API, isoladamente, normalmente cabem em 2 GB de RAM livre e 2 CPU
 
 Libere essas portas ou altere os mapeamentos antes de iniciar. Dentro do Compose, os containers se comunicam pelos nomes dos serviços; por isso PostgreSQL e RabbitMQ não precisam publicar suas portas para a API.
 
-## 3. Subir todo o ambiente com Docker Compose
+## 3. Publicar e executar sem Docker
+
+No Linux ou macOS, gere a interface, publique a API e inicie o pacote:
+
+```bash
+./scripts/publish-local.sh
+./publish/devicepulse/run.sh
+```
+
+No PowerShell:
+
+```powershell
+./scripts/publish-local.ps1
+./publish/devicepulse/run.ps1
+```
+
+A aplicação completa estará em <http://localhost:5000>. O pacote é framework-dependent: a máquina de destino precisa somente do runtime ASP.NET Core 8. O arquivo `data/devicepulse.db` é criado ao lado da aplicação. Pare o processo antes de copiar esse arquivo para backup; para restaurar, substitua-o com a aplicação parada.
+
+Para atualizar, faça backup do banco, gere ou extraia a nova publicação e preserve o diretório `data`. Para desinstalar, pare o processo e remova a pasta publicada. Defina `ASPNETCORE_URLS` antes de iniciar para mudar a porta.
+
+Também é possível iniciar diretamente do código com SQLite:
+
+```bash
+dotnet run --project backend/DevicePulse.Api
+```
+
+## 4. Subir o ambiente opcional com Docker Compose
 
 Na raiz do repositório:
 
@@ -65,7 +100,13 @@ docker compose ps
 docker compose logs -f api frontend
 ```
 
-Espere `postgres`, `rabbitmq` e `api` ficarem `healthy`. Em seguida, valide:
+Esse modo mínimo inicia PostgreSQL, API e frontend. Para incluir os serviços ainda opcionais:
+
+```bash
+docker compose --profile messaging --profile observability up --build -d
+```
+
+Espere `postgres` e `api` ficarem `healthy`. Se ativar `messaging`, espere também o `rabbitmq`. Em seguida, valide:
 
 ```bash
 curl --fail http://localhost:5000/health/live
@@ -87,11 +128,11 @@ Para apagar também o banco local e recomeçar vazio (operação destrutiva):
 docker compose down --volumes
 ```
 
-## 4. Rodar API e frontend em modo de desenvolvimento
+## 5. Rodar API e frontend em modo de desenvolvimento
 
-### 4.1 Preparar PostgreSQL
+### 5.1 Escolher SQLite ou PostgreSQL
 
-Crie o usuário e banco usando sua instalação PostgreSQL, ou inicie apenas o container do banco após configurar `.env`:
+SQLite é o padrão e não exige preparação. Para usar PostgreSQL, crie o usuário e banco usando sua instalação local ou inicie somente o container após configurar `.env`:
 
 ```bash
 docker compose up -d postgres
@@ -103,10 +144,11 @@ Configure a connection string sem gravar a senha no repositório:
 
 ```bash
 export ConnectionStrings__DevicePulse='Host=localhost;Port=5432;Database=devicepulse;Username=devicepulse;Password=<sua-senha>'
+export Database__Provider=Postgres
 export ASPNETCORE_ENVIRONMENT=Development
 ```
 
-### 4.2 Iniciar a API
+### 5.2 Iniciar a API
 
 Em um terminal, na raiz:
 
@@ -117,7 +159,7 @@ dotnet run --project backend/DevicePulse.Api --launch-profile http
 
 A API aplicará as migrations e ouvirá em <http://localhost:5000>. Confira <http://localhost:5000/swagger>, `curl --fail http://localhost:5000/health/ready` e os logs do terminal. Se a inicialização falhar antes de abrir a porta, verifique primeiro a connection string, as credenciais, a disponibilidade do PostgreSQL e a permissão do usuário no schema.
 
-### 4.3 Iniciar o frontend
+### 5.3 Iniciar o frontend
 
 Em outro terminal:
 
@@ -129,7 +171,7 @@ npm run dev
 
 Abra <http://localhost:5173>. O Vite encaminha `/api` e o WebSocket `/hubs` para `http://localhost:5000`; a API precisa estar nessa porta para o frontend funcionar sem configuração adicional.
 
-## 5. Preparar e rodar o simulador (Autopilot)
+## 6. Preparar e rodar o simulador (Autopilot)
 
 O simulador é um `BackgroundService` dentro da API, não um executável separado. Ele começa **parado**, usa todos os equipamentos cadastrados e, por padrão, gera uma leitura automática para cada equipamento a cada 10 segundos. O intervalo pode ser alterado antes de iniciar a API:
 
@@ -139,7 +181,7 @@ export Autopilot__IntervalSeconds=5
 
 O valor mínimo efetivo é 1 segundo. No Compose, adicione `Autopilot__IntervalSeconds` ao bloco `environment` do serviço `api` se quiser sobrescrever o padrão.
 
-### 5.1 Cadastrar ao menos um equipamento
+### 6.1 Cadastrar ao menos um equipamento
 
 Com a API pronta:
 
@@ -153,7 +195,7 @@ curl --fail-with-body \
 
 O nome deve ser único, o mínimo deve ser menor que o máximo e o valor atual deve estar no intervalo. Sem equipamentos, o Autopilot pode ficar ativo, mas não produzirá leituras.
 
-### 5.2 Iniciar e acompanhar
+### 6.2 Iniciar e acompanhar
 
 ```bash
 curl --fail-with-body --request POST http://localhost:5000/api/autopilot/start
@@ -169,18 +211,18 @@ curl --fail-with-body http://localhost:5000/api/equipments
 
 O campo de leituras automáticas no dashboard deve crescer. No frontend, o painel atualiza a consulta periodicamente. Os clientes conectados ao hub `/hubs/device-updates` recebem as atualizações em tempo real.
 
-### 5.3 Parar
+### 6.3 Parar
 
 ```bash
 curl --fail-with-body --request POST http://localhost:5000/api/autopilot/stop
 curl --fail-with-body http://localhost:5000/api/autopilot
 ```
 
-O estado do Autopilot fica apenas em memória: reiniciar a API o deixa parado novamente. Equipamentos e leituras permanecem no PostgreSQL.
+O estado do Autopilot fica apenas em memória: reiniciar a API o deixa parado novamente. Equipamentos e leituras permanecem no SQLite ou PostgreSQL configurado.
 
-## 6. Diagnóstico rápido
+## 7. Diagnóstico rápido
 
-- **API não inicia:** confira `docker compose logs api postgres`, a connection string e o health check do PostgreSQL.
+- **API não inicia:** confira a seleção de provider e a connection string; no Compose, verifique `docker compose logs api postgres` e o health check do PostgreSQL.
 - **Frontend mostra erro ao carregar:** teste `http://localhost:5000/health/ready`; no desenvolvimento, confirme que a API está na porta `5000`.
 - **Autopilot ativo sem novas leituras:** confirme que existe ao menos um equipamento, aguarde o intervalo completo e veja `docker compose logs api`.
 - **Porta em uso:** identifique o processo com `ss -ltnp` (Linux) ou altere o mapeamento/URL correspondente.
